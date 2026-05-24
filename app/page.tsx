@@ -1,14 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useRef, useState } from "react";
-import {
-  X,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-} from "lucide-react"
+import { useRef, useState, useEffect, useCallback } from "react";
+import { X,  SkipBack,  SkipForward,} from "lucide-react"
 import SongCard from "@/components/SongCard";
 const songs = [
   {
@@ -132,252 +126,268 @@ const songs = [
   },
 ];
 export default function Home() {
-
-  const [currentSong, setCurrentSong] = useState<
-    (typeof songs)[0] | null
-  >(null);
-  const [currentSongIndex, setCurrentSongIndex] = useState(0)
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // ========== STATE ==========
+  const [currentSong, setCurrentSong] = useState<(typeof songs)[0] | null>(null);
+  const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const progressPercentage =
-  duration > 0 ? (currentTime / duration) * 100 : 0
-  const playNextSong = () => {
-  const nextIndex = (currentSongIndex + 1) % songs.length
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
-  setCurrentSongIndex(nextIndex)
-  setCurrentSong(songs[nextIndex])
-  setIsPlaying(true)
-}
-const playPreviousSong = () => {
-  const prevIndex =
-    (currentSongIndex - 1 + songs.length) % songs.length
+  // ========== REFS ==========
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  setCurrentSongIndex(prevIndex)
-  setCurrentSong(songs[prevIndex])
-  setIsPlaying(true)
-}
-const closePlayer = () => {
-  if (audioRef.current) {
-    audioRef.current.pause()
-    audioRef.current.currentTime = 0
-  }
+  // ========== COMPUTED VALUES ==========
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  setIsPlaying(false)
-  setCurrentSong(null)
-  setCurrentTime(0)
-}
+  // ========== CALLBACKS ==========
+  const playNextSong = useCallback(() => {
+    setCurrentSongIndex((prevIndex) => {
+      const nextIndex = (prevIndex + 1) % songs.length;
+      setCurrentSong(songs[nextIndex]);
+      setIsPlaying(true);
+      return nextIndex;
+    });
+  }, []);
+
+  const playPreviousSong = useCallback(() => {
+    setCurrentSongIndex((prevIndex) => {
+      const newIndex = (prevIndex - 1 + songs.length) % songs.length;
+      setCurrentSong(songs[newIndex]);
+      setIsPlaying(true);
+      return newIndex;
+    });
+  }, []);
+
+  const togglePlayPause = useCallback(() => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying((prev) => !prev);
+  }, [isPlaying]);
+
+  const closePlayer = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
+    setCurrentSong(null);
+    setCurrentTime(0);
+  }, []);
+
+  const handleProgressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+    }
+    setCurrentTime(newTime);
+  }, []);
+
+  // ========== EFFECTS ==========
+  // Update audio source when song changes
+  useEffect(() => {
+    if (currentSong && audioRef.current) {
+      <audio 
+        ref={audioRef}
+        src={currentSong?.audio} />
+      if (isPlaying) {
+        audioRef.current.play();
+      }
+    }
+  }, [currentSong, isPlaying]);
+
+  // Auto-play next song when current ends
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleEnded = () => {
+      playNextSong();
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    return () => {
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [playNextSong]);
+
+  // ========== HELPERS ==========
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  // ========== RENDER ==========
   return (
     <>
-      <main className="min-h-screen bg-black text-white p-10">
-        <h1 className="text-5xl font-bold mb-10">
-          HeartBEATS 🎵
-        </h1>
+      {/* Hidden Audio Element */}
+      <audio
+        ref={audioRef}
+        onTimeUpdate={() => {
+          if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+          }
+        }}
+        onLoadedMetadata={() => {
+          if (audioRef.current) {
+            setDuration(audioRef.current.duration);
+          }
+        }}
+      />
 
-      <div className="flex gap-6 flex-wrap">
-        {songs.map((song, index) => (
-          <div
-            key={song.id}
-            onClick={() => {
-  setCurrentSong(song)
-  setCurrentSongIndex(index)
-  setIsPlaying(false);
-}}
-          >
-            <SongCard
-              title={song.title}
-              artist={song.artist}
-              cover={song.cover}
-              isActive={currentSong?.id === song.id}
-            />
-          </div>
-        ))}
-      </div>
+      <main className="min-h-screen bg-black text-white p-10 pb-40">
+        <h1 className="text-5xl font-bold mb-10">HeartBEATS 🎵</h1>
+
+        {/* Song Grid */}
+        <div className="flex gap-6 flex-wrap mb-10">
+          {songs.map((song, index) => (
+            <div
+              key={song.id}
+              onClick={() => {
+                setCurrentSong(song);
+                setCurrentSongIndex(index);
+                setIsPlaying(true);
+              }}
+              className="cursor-pointer"
+            >
+              <SongCard
+                title={song.title}
+                artist={song.artist}
+                cover={song.cover}
+                isActive={currentSong?.id === song.id}
+              />
+            </div>
+          ))}
+        </div>
+      </main>
+
+      {/* Player Overlay - Shows when song is selected */}
       {currentSong && (
         <>
-  <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-40">
-  <button
-  onClick={closePlayer}
-  className="
-    fixed
-    top-6
-    right-6
-    z-50
-    w-12
-    h-12
-    rounded-full
-    bg-black/10
-    backdrop-blur-md
-    border border-white/10
-    text-white
-    text-2xl
-    transition-all
-    duration-300
-    hover:scale-110
-    hover:bg-black/20
-  "
->
-  <X size={24} />
-</button>
-  <div className="animate-[float_5s_ease-in-out_infinite]">
-    <div
-      className={
-        isPlaying
-          ? "animate-[pulseGlow_3s_ease-in-out_infinite]"
-          : ""
-      }
-    >
-      <img
-        src={currentSong.cover}
-        alt={currentSong.title}
-      className={`
-max-h-[70vh]
-w-auto
-max-w-[90vw]
-object-contain
-rounded-3xl
-border border-white/10
-transition-all duration-700
-`}
-      />
-    </div>
-    
-  </div>
-  
-</div>
+          {/* Close Button */}
+          <button
+            onClick={closePlayer}
+            className="fixed top-6 right-6 z-50 w-12 h-12 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white hover:bg-black/50 transition-all duration-300 hover:scale-110 flex items-center justify-center"
+          >
+            <X size={24} />
+          </button>
 
-  <div className="fixed bottom-0 left-0 w-full bg-zinc-900 border-t border-zinc-800 px-6 py-4 flex items-center justify-between">
+          {/* Floating Album Art */}
+          <div className="fixed bottom-40 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+            <div className="animate-[float_5s_ease-in-out_infinite]">
+              <div
+                className={`rounded-3xl overflow-hidden border border-white/10 shadow-2xl ${
+                  isPlaying ? 'animate-[pulseGlow_3s_ease-in-out_infinite]' : ''
+                }`}
+              >
+                <img
+                  src={currentSong.cover}
+                  alt={currentSong.title}
+                  className="max-h-[60vh] w-auto max-w-[80vw] object-cover"
+                />
+              </div>
+            </div>
+          </div>
 
-    {/* LEFT SECTION */}
-    <div className="flex items-center gap-4">
-      <img
-        src={currentSong.cover}
-        alt={currentSong.title}
-        className="w-16 h-16 rounded-lg object-cover"
-      />
+          {/* Bottom Player Bar */}
+          <div className="fixed bottom-0 left-0 w-full bg-linear-to-t from-zinc-900 via-zinc-900 to-transparent border-t border-zinc-800 p-6 z-30">
+            {/* Main Player Content */}
+            <div className="flex items-center justify-between gap-6 mb-4">
+              {/* Left Section - Song Info */}
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <img
+                  src={currentSong.cover}
+                  alt={currentSong.title}
+                  className="w-16 h-16 rounded-lg object-cover shrink-0 shadow-lg"
+                />
+                <div className="min-w-0">
+                  <h2 className="text-white font-bold truncate text-lg">
+                    {currentSong.title}
+                  </h2>
+                  <p className="text-sm text-zinc-400 truncate">
+                    {currentSong.artist}
+                  </p>
+                </div>
+              </div>
 
-      <div>
-        <h2 className="font-semibold">
-          {currentSong.title}
-        </h2>
+              {/* Center Section - Controls */}
+              <div className="flex items-center justify-center gap-6 shrink-0">
+                <button
+                  onClick={playPreviousSong}
+                  className="text-white hover:text-green-400 transition hover:scale-110 active:scale-95"
+                >
+                  <SkipBack size={28} />
+                </button>
 
-        <p className="text-sm text-zinc-400">
-          {currentSong.artist}
-        </p>
-      </div>
-    </div>
+                <button
+                  onClick={togglePlayPause}
+                  className="bg-green-500 hover:bg-green-400 rounded-full w-16 h-16 text-black flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg shadow-green-500/30 text-2xl font-bold"
+                >
+                  {isPlaying ? '⏸' : '▶'}
+                </button>
 
-    {/* CENTER CONTROLS */}
-    <div className="flex items-center gap-4">
-  <button
-  onClick={playPreviousSong}
-  className="
-    text-white
-    transition
-    hover:scale-110
-    hover:text-green-400
-  "
->
-  <SkipBack size={28} />
-</button>
+                <button
+                  onClick={playNextSong}
+                  className="text-white hover:text-green-400 transition hover:scale-110 active:scale-95"
+                >
+                  <SkipForward size={28} />
+                </button>
+              </div>
 
-  <button
-    onClick={() => {
-      if (!audioRef.current) return
+              {/* Right Section - Empty for future features */}
+              <div className="flex-1" />
+            </div>
 
-      if (isPlaying) {
-        audioRef.current.pause()
-      } else {
-        audioRef.current.play()
-      }
+            {/* Progress Bar Section */}
+            <div className="w-full flex items-center gap-3">
+              <span className="text-xs text-gray-400 min-w-10">
+                {formatTime(currentTime)}
+              </span>
 
-      setIsPlaying(!isPlaying)
-    }}
-    className="
-  bg-green-500
-  rounded-full
-  w-14
-  h-14
-  text-black
-  flex
-  items-center
-  justify-center
-  transition-all
-  duration-300
-  hover:scale-110
-  hover:bg-green-400
-  shadow-lg
-  shadow-green-500/30
-"
-  >
-    {isPlaying ? "⏸" : "▶"}
-  </button>
+              <input
+                type="range"
+                min="0"
+                max={duration || 0}
+                value={currentTime}
+                onChange={handleProgressChange}
+                className="flex-1 h-1.5 appearance-none bg-gray-700 rounded-lg cursor-pointer accent-green-500 hover:h-2 transition-[height] duration-200"
+                style={{
+                  background: `linear-gradient(to right, #22c55e 0%, #22c55e ${progressPercentage}%, #374151 ${progressPercentage}%, #374151 100%)`,
+                }}
+              />
 
-  <button
-  onClick={playNextSong}
-  className="
-    text-white
-    transition
-    hover:scale-110
-    hover:text-green-400
-  "
->
-  <SkipForward size={28} />
-</button>
-  
-</div>
-    {/* HIDDEN AUDIO */}
-    <audio
-  ref={audioRef}
-  src={currentSong?.audio}
-  onTimeUpdate={() => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime)
-    }
-  }}
-  onLoadedMetadata={() => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration)
-    }
-  }}
-/>
-<div className="w-full mt-4 flex items-center gap-3">
-  <span className="text-sm text-gray-400">
-    {Math.floor(currentTime / 60)}:
-    {String(Math.floor(currentTime % 60)).padStart(2, "0")}
-  </span>
+              <span className="text-xs text-gray-400 min-w-10">
+                {formatTime(duration)}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
 
-  <input
-    type="range"
-    style={{
-  background: `linear-gradient(to right, #1db954 ${progressPercentage}%, #374151 ${progressPercentage}%)`,
-}}
-    min="0"
-    max={duration || 0}
-    value={currentTime}
-    onChange={(e) => {
-      const newTime = Number(e.target.value)
+      {/* Custom animations */}
+      <style>{`
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-20px);
+          }
+        }
 
-      if (audioRef.current) {
-        audioRef.current.currentTime = newTime
-      }
-
-      setCurrentTime(newTime)
-    }}
-    className="flex-1 h-1 appearance-none bg-gray-700 rounded-lg cursor-pointer"
-  />
-
-  <span className="text-sm text-gray-400">
-    {Math.floor(duration / 60)}:
-    {String(Math.floor(duration % 60)).padStart(2, "0")}
-  </span>
-</div>
-  </div>
-  </>
-)}
-    </main>
-      
-    </> 
+        @keyframes pulseGlow {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+          }
+          50% {
+            box-shadow: 0 0 0 20px rgba(34, 197, 94, 0);
+          }
+        }
+      `}</style>
+    </>
   );
 }

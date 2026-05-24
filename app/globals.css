@@ -91,3 +91,27 @@ input[type="range"]::-webkit-slider-thumb:hover {
   animation: equalizer 0.8s ease-in-out infinite;
   transform-origin: bottom;
 }
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(1.08); }
+  to { opacity: 0.6; transform: scale(1.1); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 0.6; }
+  to { opacity: 0; }
+}
+@keyframes shine {
+  0% {
+    transform: translateX(-120%) rotate(12deg);
+  }
+  100% {
+    transform: translateX(220%) rotate(12deg);
+  }
+}
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}

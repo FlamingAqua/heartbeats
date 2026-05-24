@@ -16,7 +16,18 @@ export function useAudioPlayer(songs: Song[]) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const [audioEnergy, setAudioEnergy] = useState(0);
+  const openExpandedPlayer = useCallback(() => {
+     setIsExpanded(true);
+    }, []);
 
+  const closeExpandedPlayer = useCallback(() => {
+    setIsExpanded(false);
+    }, []);
   // ================= REF =================
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -24,11 +35,35 @@ export function useAudioPlayer(songs: Song[]) {
   const currentSong =
     currentSongIndex !== null ? songs[currentSongIndex] : null;
 
-  // ================= INIT AUDIO =================
+  
+  useEffect(() => {
+  if (!audioRef.current) return;
+
+  const audio = audioRef.current;
+
+  const context = new AudioContext();
+  const source = context.createMediaElementSource(audio);
+  const analyser = context.createAnalyser();
+
+  analyser.fftSize = 256;
+
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+
+  source.connect(analyser);
+  analyser.connect(context.destination);
+
+  audioContextRef.current = context;
+  analyserRef.current = analyser;
+  dataArrayRef.current = dataArray;
+}, []);
+
+
+// ================= INIT AUDIO =================
   useEffect(() => {
     const audio = new Audio();
     audioRef.current = audio;
-
+    
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration || 0);
 
@@ -74,24 +109,31 @@ export function useAudioPlayer(songs: Song[]) {
   }, [isPlaying, currentSongIndex]);
 
   // ================= CONTROLS =================
-  const play = useCallback(() => {
-    if (currentSongIndex === null) return;
-    setIsPlaying(true);
-  }, [currentSongIndex]);
+  const [beatTrigger, setBeatTrigger] = useState(0);
+  const play = useCallback((index: number) => {
+  setCurrentSongIndex(index);
+  setIsPlaying(true);
+
+  // 💥 BEAT EXPLOSION TRIGGER
+  setBeatTrigger((prev) => prev + 1);
+}, []);
 
   const pause = useCallback(() => {
     setIsPlaying(false);
   }, []);
 
   const togglePlayPause = useCallback(() => {
-    if (currentSongIndex === null) return;
-    setIsPlaying((prev) => !prev);
-  }, [currentSongIndex]);
+  setIsPlaying((prev) => !prev);
+
+  // 💥 small pulse even on play/pause
+  setBeatTrigger((p) => p + 1);
+}, []);
 
   const playSong = useCallback((index: number) => {
-    setCurrentSongIndex(index);
-    setIsPlaying(true);
-  }, []);
+  setCurrentSongIndex(index);
+  setIsPlaying(true);
+  setIsExpanded(true); // ⭐ open fullscreen automatically
+}, []);
 
   const playNext = useCallback(() => {
     setCurrentSongIndex((prev) => {
@@ -145,6 +187,7 @@ export function useAudioPlayer(songs: Song[]) {
       audio.removeEventListener("ended", handleEnded);
     };
   }, [playNext]);
+  
 
   // ================= PROGRESS =================
   const progress =
@@ -182,5 +225,13 @@ export function useAudioPlayer(songs: Song[]) {
 
     // ref
     audioRef,
+
+    isExpanded,
+    openExpandedPlayer,
+    closeExpandedPlayer,
+
+    //beattrigger
+    beatTrigger,
+
   };
 }

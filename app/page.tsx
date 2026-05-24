@@ -1,41 +1,126 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { useState, useEffect } from "react";
 import Equalizer from "@/components/Equalizer";
 import SongCard from "@/components/SongCard";
 import { X, SkipBack, SkipForward } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { songs } from "@/data/songs";
-
-
+import { motion, AnimatePresence } from "framer-motion";
+import BeatParticles from "@/components/BeatParticles";
 export default function Home() {
   const player = usePlayer();
+  const bgImage = player.currentSong?.cover;
+  const bg = player.currentSong?.cover;
   return (
     <>
+      <BeatParticles trigger={player.beatTrigger} />
       {/* Song Grid */}
-      <main className="min-h-screen bg-black text-white px-4 py-6 sm:px-8 md:px-10 pb-40">
-        <h1 className="text-5xl font-bold mb-10">HeartBEATS 🎵</h1>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 mb-10">
+      <main className="relative overflow-hidden min-h-screen bg-black text-white px-4 py-6 sm:px-8 md:px-10 pb-40">
+        <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute w-[500px] h-[500px] bg-green-500/10 blur-[120px] top-[-200px] left-[-200px]" />
+        <div className="absolute w-[400px] h-[400px] bg-purple-500/10 blur-[120px] bottom-[-200px] right-[-200px]" />
+        </div>
+        <div className="mb-12 text-center">
+          <h1 className="text-6xl font-extrabold tracking-tight relative">
+           <span className="bg-gradient-to-r from-green-400 via-emerald-300 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(34,197,94,0.5)]">
+              HeartBEATS 🎵
+           </span>
+          </h1>
+
+  <p className="text-zinc-400 mt-3">
+    Feel the rhythm. Live the sound. Made just for you, by YOUR MANESH. ❤️
+  </p>
+</div>
+ 
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 sm:gap-6 mb-10">
           {songs.map((song, index) => (
-            <div
-              key={song.id}
-              onClick={() => player.playSong(index)}
-              className="cursor-pointer"
-            >
-              <SongCard
-                title={song.title}
-                artist={song.artist}
-                cover={song.cover}
-                isActive={player.currentSong?.id === song.id}
-              />
-            </div>
+            <motion.div
+  key={song.id}
+  onClick={() => player.playSong(index)}
+  className="cursor-pointer perspective-1000"
+  whileHover={{
+    scale: 1.06,
+    rotateX: 6,
+    rotateY: -6,
+    y: -10,
+  }}
+  whileTap={{
+    scale: 0.98,
+    rotateX: 0,
+    rotateY: 0,
+  }}
+  transition={{
+    type: "spring",
+    stiffness: 260,
+    damping: 18,
+  }}
+>
+  {/* 3D wrapper */}
+  <div className="relative group preserve-3d">
+
+    {/* ⭐ NOW PLAYING PULSE RING */}
+    {player.currentSong?.id === song.id && (
+      <div className="absolute inset-0 rounded-xl border border-green-400/60 shadow-[0_0_20px_rgba(34,197,94,0.4)] animate-pulse" />
+    )}
+
+    {/* 💡 Glow layer */}
+    <div className="absolute inset-0 rounded-xl bg-green-400/10 blur-xl opacity-0 group-hover:opacity-100 transition duration-300" />
+    
+
+    {/* 🎧 Card */}
+    <div className="relative transform-gpu transition-transform duration-300">
+      <SongCard
+        title={song.title}
+        artist={song.artist}
+        cover={song.cover}
+        isActive={player.currentSong?.id === song.id}
+      />
+    </div>
+
+  </div>
+</motion.div>
           ))}
         </div>
       </main>
+      {/* BACKGROUND BLUR LAYER */}
+          {bg && (
+  <         div className="fixed inset-0 z-0 overflow-hidden">
+    
+              {/* Background image */}
+              <img
+                src={bg}
+                className="w-full h-full object-cover scale-110 blur-3xl opacity-60 transition-all duration-700"
+                alt="background"
+    />
 
+              {/* Dark overlay */}
+              <div className="absolute inset-0backdrop-blur-2xl bg-black/40 border-t border-white/10 shadow-[0_-20px_80px_rgba(0,0,0,0.6)]" />
+                </div>
+           )}
       {/* Player */}
       {player.currentSong && (
         <>
+          {/* 🌌 BACKGROUND BLUR (PUT THIS FIRST) */}
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={player.currentSong.id}
+        initial={{ opacity: 0, scale: 1.1 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.6, ease: "easeInOut" }}
+        className="fixed inset-0 z-0"
+      >
+        <div
+          className="absolute inset-0 bg-cover bg-center blur-3xl scale-110"
+          style={{
+            backgroundImage: `url(${player.currentSong.cover})`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/70" />
+      </motion.div>
+    </AnimatePresence>
           {/* Close Button */}
           <button
             onClick={player.close}
@@ -64,7 +149,7 @@ export default function Home() {
           </div>
 
           {/* Bottom Player Bar */}
-          <div className="fixed bottom-0 left-0 w-full bg-linear-to-t from-zinc-900 via-zinc-900 to-transparent border-t border-zinc-800 p-6 z-30">
+          <div className="fixed bottom-0 left-0 w-full bg-white/5 backdrop-blur-2xl border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.4)] p-6 z-30">
             
             {/* Top Row */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
@@ -116,6 +201,32 @@ export default function Home() {
               </div>
 
               {/* Right spacer */}
+              <div className="hidden md:flex items-center gap-5 pr-2">
+
+  <button className="text-zinc-400 hover:text-red-400 transition hover:scale-110">
+    ❤️
+  </button>
+
+  <button className="text-zinc-400 hover:text-white transition hover:scale-110">
+    ☰
+  </button>
+
+  {/* Hover Volume */}
+  <div className="flex items-center gap-2 group">
+    <span className="text-zinc-400 group-hover:text-white transition">
+      🔊
+    </span>
+
+    <input
+      type="range"
+      min="0"
+      max="100"
+      defaultValue="80"
+      className="w-0 group-hover:w-24 transition-all duration-300 accent-green-500"
+    />
+  </div>
+
+</div>
               <div className="flex-1 hidden md:block" />
             </div>
 

@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
-
+import Equalizer from "@/components/Equalizer";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { X,  SkipBack,  SkipForward,} from "lucide-react"
 import SongCard from "@/components/SongCard";
@@ -159,14 +159,8 @@ export default function Home() {
   }, []);
 
   const togglePlayPause = useCallback(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying((prev) => !prev);
-  }, [isPlaying]);
+  setIsPlaying((prev) => !prev);
+}, []);
 
   const closePlayer = useCallback(() => {
     if (audioRef.current) {
@@ -188,16 +182,17 @@ export default function Home() {
 
   // ========== EFFECTS ==========
   // Update audio source when song changes
-  useEffect(() => {
-    if (currentSong && audioRef.current) {
-      <audio 
-        ref={audioRef}
-        src={currentSong?.audio} />
-      if (isPlaying) {
-        audioRef.current.play();
-      }
-    }
-  }, [currentSong, isPlaying]);
+ useEffect(() => {
+  if (!audioRef.current || !currentSong) return;
+
+  if (isPlaying) {
+    audioRef.current.play().catch((err) => {
+      console.log("Playback failed:", err);
+    });
+  } else {
+    audioRef.current.pause();
+  }
+}, [currentSong, isPlaying]);
 
   // Auto-play next song when current ends
   useEffect(() => {
@@ -226,24 +221,25 @@ export default function Home() {
     <>
       {/* Hidden Audio Element */}
       <audio
-        ref={audioRef}
-        onTimeUpdate={() => {
-          if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime);
-          }
-        }}
-        onLoadedMetadata={() => {
-          if (audioRef.current) {
-            setDuration(audioRef.current.duration);
-          }
-        }}
-      />
-
-      <main className="min-h-screen bg-black text-white p-10 pb-40">
+  ref={audioRef}
+  src={currentSong?.audio}
+  onTimeUpdate={() => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  }}
+  onLoadedMetadata={() => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  }}
+/>
+     {/** Main Content */}
+      <main className="min-h-screen bg-black text-white px-4 py-6 sm:px-8 md:px-10 pb-40">
         <h1 className="text-5xl font-bold mb-10">HeartBEATS 🎵</h1>
 
         {/* Song Grid */}
-        <div className="flex gap-6 flex-wrap mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 mb-10">
           {songs.map((song, index) => (
             <div
               key={song.id}
@@ -271,7 +267,9 @@ export default function Home() {
           {/* Close Button */}
           <button
             onClick={closePlayer}
-            className="fixed top-6 right-6 z-50 w-12 h-12 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white hover:bg-black/50 transition-all duration-300 hover:scale-110 flex items-center justify-center"
+            className="fixed top-6 right-6 z-50 w-12 h-12 rounded-full bg-black/30 backdrop-blur-md 
+                       border border-white/20 text-white hover:bg-black/50 transition-all duration-300 
+                       hover:scale-110 flex items-center justify-center"
           >
             <X size={24} />
           </button>
@@ -287,35 +285,44 @@ export default function Home() {
                 <img
                   src={currentSong.cover}
                   alt={currentSong.title}
-                  className="max-h-[60vh] w-auto max-w-[80vw] object-cover"
+                  className="max-h-[40vh] sm:max-h-[50vh] md:max-h-[60vh] w-auto max-w-[85vw] sm:max-w-[70vw] 
+                             md:max-w-[60vw] object-cover"
                 />
               </div>
             </div>
           </div>
 
           {/* Bottom Player Bar */}
-          <div className="fixed bottom-0 left-0 w-full bg-linear-to-t from-zinc-900 via-zinc-900 to-transparent border-t border-zinc-800 p-6 z-30">
+          <div className="fixed bottom-0 left-0 w-full bg-linear-to-t from-zinc-900 via-zinc-900 
+                          to-transparent border-t border-zinc-800 p-6 z-30">
+            
             {/* Main Player Content */}
             <div className="flex items-center justify-between gap-6 mb-4">
+              
               {/* Left Section - Song Info */}
-              <div className="flex items-center gap-4 min-w-0 flex-1">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 mb-4">
                 <img
                   src={currentSong.cover}
                   alt={currentSong.title}
                   className="w-16 h-16 rounded-lg object-cover shrink-0 shadow-lg"
                 />
-                <div className="min-w-0">
-                  <h2 className="text-white font-bold truncate text-lg">
-                    {currentSong.title}
-                  </h2>
-                  <p className="text-sm text-zinc-400 truncate">
-                    {currentSong.artist}
-                  </p>
+                <div className="flex items-center gap-3 min-w-0">
+                   <Equalizer isPlaying={isPlaying} />
+                     <div className="min-w-0">
+                      <h2 className="text-white font-bold truncate text-lg">
+                         {currentSong.title}
+                      </h2>
+                      <p className="text-sm text-zinc-400 truncate">
+                        {currentSong.artist}
+                      </p>
+                    </div>
+
                 </div>
               </div>
 
-              {/* Center Section - Controls */}
-              <div className="flex items-center justify-center gap-6 shrink-0">
+            {/* Center Section - Controls */}
+              {/* Play Previous */}
+              <div className="flex items-center justify-center gap-4 md:gap-6 shrink-0">
                 <button
                   onClick={playPreviousSong}
                   className="text-white hover:text-green-400 transition hover:scale-110 active:scale-95"
@@ -323,13 +330,17 @@ export default function Home() {
                   <SkipBack size={28} />
                 </button>
 
+                {/* Play Pause */}
                 <button
                   onClick={togglePlayPause}
-                  className="bg-green-500 hover:bg-green-400 rounded-full w-16 h-16 text-black flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg shadow-green-500/30 text-2xl font-bold"
+                  className="bg-green-500 hover:bg-green-400 rounded-full w-13 h-13 text-black flex items-center 
+                             justify-center transition-all duration-300 hover:scale-110 active:scale-95 
+                             shadow-lg shadow-green-500/30 text-2xl font-bold"
                 >
                   {isPlaying ? '⏸' : '▶'}
                 </button>
 
+                {/* Play next */}
                 <button
                   onClick={playNextSong}
                   className="text-white hover:text-green-400 transition hover:scale-110 active:scale-95"
@@ -339,12 +350,12 @@ export default function Home() {
               </div>
 
               {/* Right Section - Empty for future features */}
-              <div className="flex-1" />
+              <div className="flex-1 hidden md:block" />
             </div>
 
             {/* Progress Bar Section */}
-            <div className="w-full flex items-center gap-3">
-              <span className="text-xs text-gray-400 min-w-10">
+            <div className="w-full flex items-center gap-2 sm:gap-3">
+              <span className="text-xs text-gray-400 min-w-8 sm:min-w-10">
                 {formatTime(currentTime)}
               </span>
 
